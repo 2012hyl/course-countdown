@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>九年级1班 · 课程倒计时</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='5' fill='%230e1626'/%3E%3Ccircle cx='12' cy='13' r='7' fill='none' stroke='%23f5a623' stroke-width='2'/%3E%3Cpath d='M12 9.5V13l2.4 2' stroke='%23f5a623' stroke-width='1.6' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
+<style>
+  :root{
+    --bg:#0e1626;
+    --panel:#141f36;
+    --panel-2:#1b2a49;
+    --line:#22314f;
+    --text:#eef3fb;
+    --muted:#8fa0bd;
+    --amber:#f5a623;
+    --teal:#3fd0c0;
+    --slate:#59637a;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    font-family:-apple-system,"PingFang SC","Microsoft YaHei","Segoe UI",sans-serif;
+    background:
+      radial-gradient(1100px 520px at 50% -12%, rgba(245,166,35,.12), transparent 62%),
+      radial-gradient(900px 480px at 88% 108%, rgba(63,208,192,.08), transparent 60%),
+      var(--bg);
+    color:var(--text);
+    min-height:100vh;
+    display:flex;flex-direction:column;align-items:center;
+    padding:0 20px 36px;
+  }
+  .wrap{width:100%;max-width:1060px;display:flex;flex-direction:column;min-height:100vh;justify-content:space-between;gap:10px;padding-top:6px}
+  .mono{font-variant-numeric:tabular-nums}
+
+  /* ===== 顶部小行：左当前时间，右下一节课 ===== */
+  .top{
+    display:flex;align-items:stretch;justify-content:space-between;gap:16px;
+    padding:14px 18px;border-bottom:1px solid var(--line);
+  }
+  .now-box{display:flex;flex-direction:column;gap:3px}
+  .now-box .time{font-size:26px;font-weight:700;letter-spacing:1px}
+  .now-box .date{font-size:12.5px;color:var(--muted)}
+  .next-box{display:flex;flex-direction:column;gap:3px;text-align:right;align-items:flex-end}
+  .next-box .lbl{font-size:11px;color:var(--muted);letter-spacing:2px}
+  .next-box .n-name{font-size:20px;font-weight:800}
+  .next-box .n-meta{font-size:12.5px;color:var(--muted)}
+  .next-box .n-meta b{color:var(--text);font-weight:600}
+
+  /* ===== 中央大倒计时 ===== */
+  .hero{
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    text-align:center;padding:26px 10px;
+  }
+  .pill{
+    display:inline-flex;align-items:center;gap:8px;
+    padding:6px 14px;border-radius:999px;font-size:13px;font-weight:600;
+    background:rgba(255,255,255,.05);border:1px solid var(--line);
+    margin-bottom:18px;
+  }
+  .pill .dot{width:8px;height:8px;border-radius:50%}
+  .pill.live .dot{background:var(--amber);animation:pulse 1.6s infinite}
+  .pill.wait .dot{background:var(--teal)}
+  .pill.done .dot{background:var(--slate)}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(245,166,35,.5)}50%{box-shadow:0 0 0 6px rgba(245,166,35,0)}}
+
+  .hero-cap{font-size:15px;color:var(--muted);letter-spacing:6px;margin-bottom:6px}
+  .hero-time{
+    font-size:clamp(64px,15vw,150px);font-weight:800;line-height:1;
+    letter-spacing:2px;
+  }
+  .hero-sub{font-size:15px;color:var(--text);margin-top:16px;opacity:.85}
+  .progress{width:min(340px,72vw);height:5px;border-radius:99px;background:var(--panel-2);margin-top:26px;overflow:hidden}
+  .progress .bar{height:100%;width:0;border-radius:99px;background:var(--amber);transition:width .5s linear,background .4s}
+
+  /* ===== 底部按钮 ===== */
+  .foot{display:flex;justify-content:center;padding-top:8px}
+  .btn{
+    font-family:inherit;font-size:15px;font-weight:700;color:var(--text);
+    padding:13px 34px;border-radius:14px;cursor:pointer;
+    background:linear-gradient(180deg,var(--panel-2),var(--panel));
+    border:1px solid var(--line);
+    transition:border-color .2s,transform .1s;
+  }
+  .btn:hover{border-color:var(--amber)}
+  .btn:active{transform:scale(.98)}
+  .btn svg{vertical-align:-2px;margin-right:8px}
+
+  /* ===== 模态框：完整课程表 ===== */
+  .modal{
+    position:fixed;inset:0;z-index:50;
+    background:rgba(8,12,22,.66);backdrop-filter:blur(6px);
+    display:flex;align-items:center;justify-content:center;
+    padding:18px;opacity:0;pointer-events:none;transition:opacity .25s;
+  }
+  .modal.open{opacity:1;pointer-events:auto}
+  .m-card{
+    width:100%;max-width:860px;max-height:86vh;overflow:auto;
+    background:linear-gradient(180deg,var(--panel),#111a30);
+    border:1px solid var(--line);border-radius:20px;padding:22px 24px 18px;
+    transform:translateY(10px);transition:transform .25s;
+  }
+  .modal.open .m-card{transform:translateY(0)}
+  .m-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
+  .m-title{font-size:19px;font-weight:800}
+  .m-close{
+    font-family:inherit;font-size:22px;line-height:1;color:var(--muted);
+    width:38px;height:38px;border-radius:10px;cursor:pointer;
+    background:rgba(255,255,255,.05);border:1px solid var(--line);
+    display:flex;align-items:center;justify-content:center;
+  }
+  .m-close:hover{color:var(--text);border-color:var(--amber)}
+  .m-tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+  .tab{
+    font-family:inherit;font-size:13.5px;font-weight:700;color:var(--muted);
+    padding:8px 18px;border-radius:999px;cursor:pointer;
+    background:rgba(255,255,255,.04);border:1px solid var(--line);
+  }
+  .tab.active{color:#0e1626;background:var(--amber);border-color:var(--amber)}
+  table{width:100%;border-collapse:collapse;table-layout:fixed}
+  colgroup col:nth-child(1){width:16%}
+  colgroup col:nth-child(2){width:26%}
+  colgroup col:nth-child(3){width:32%}
+  colgroup col:nth-child(4){width:26%}
+  th,td{padding:9px 10px;text-align:left;font-size:13.5px;border-bottom:1px solid rgba(34,49,79,.55)}
+  th{color:var(--muted);font-weight:600;font-size:11.5px;letter-spacing:1.5px}
+  td{font-weight:600}
+  td.time{color:var(--muted);font-weight:400}
+  td.teacher{color:var(--muted);font-weight:400}
+  .dotc{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:8px;vertical-align:1px}
+  .m-note{font-size:11px;color:var(--slate);text-align:center;margin-top:14px}
+
+  @media(max-width:560px){
+    .top{flex-direction:column;gap:10px}
+    .next-box{align-items:flex-start;text-align:left}
+    .hero{padding:20px 6px}
+    .m-card{padding:16px 14px 14px}
+    th,td{padding:8px 6px;font-size:12.5px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ===== 顶部：左=当前时间 右=下一节课 ===== -->
+  <header class="top">
+    <div class="now-box">
+      <div class="time mono" id="clockNow">--:--:--</div>
+      <div class="date" id="clockDate"></div>
+    </div>
+    <div class="next-box">
+      <div class="lbl">下一节课</div>
+      <div class="n-name" id="nextName">—</div>
+      <div class="n-meta" id="nextMeta">—</div>
+    </div>
+  </header>
+
+  <!-- ===== 中央：大倒计时 ===== -->
+  <main class="hero">
+    <span class="pill" id="pill"><span class="dot"></span><span id="pillText">加载中</span></span>
+    <div class="hero-cap" id="heroCap">距离上课</div>
+    <div class="hero-time mono" id="heroTime">--:--</div>
+    <div class="hero-sub" id="heroSub">—</div>
+    <div class="progress"><div class="bar" id="progBar"></div></div>
+  </main>
+
+  <!-- ===== 底部：全部课程 ===== -->
+  <footer class="foot">
+    <button class="btn" id="openBtn">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M8 2v4M16 2v4M3 9h18"/></svg>
+      全部课程
+    </button>
+  </footer>
+</div>
+
+<!-- ===== 完整课程表模态框 ===== -->
+<div class="modal" id="modal">
+  <div class="m-card" role="dialog" aria-modal="true" aria-label="完整课程表">
+    <div class="m-head">
+      <div class="m-title">九年级1班 · 完整课程表</div>
+      <button class="m-close" id="closeBtn" aria-label="关闭">×</button>
+    </div>
+    <div class="m-tabs" id="tabs"></div>
+    <table>
+      <colgroup><col><col><col><col></colgroup>
+      <thead><tr><th>节次</th><th>时间</th><th>科目</th><th>老师</th></tr></thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+    <div class="m-note">最后一节课后服务 16:40–17:20 · 周一至周五分别为 英语 / 物理 / 语文 / 化学 / 数学考试</div>
+  </div>
+</div>
+
+<script>
+/* ============ 课程数据（时间用分钟数，从 00:00 起算） ============ */
+const C = {
+  语文:{color:'#f26d6d'}, 数学:{color:'#5b8def'}, 英语:{color:'#f0a04b'},
+  物理:{color:'#7a5cd6'}, 化学:{color:'#3fae8a'}, 道德与法治:{color:'#e0618b'},
+  历史:{color:'#d38f4e'}, 艺术:{color:'#d4577a'}, 劳动:{color:'#8b9a46'},
+  体育:{color:'#4cc0d8'}, 校本课程:{color:'#9aa7c0'}, 综合实践:{color:'#b57ed6'},
+  班会:{color:'#8f9bb8'}, 早会:{color:'#8f9bb8'}, 课后服务:{color:'#7e8bb0'},
+  活动:{color:'#59637a'}, 休息:{color:'#3a4356'}
+};
+function min(h,m){return h*60+m}
+const SCHED=[
+ [ /* 周一 */
+  {节:'早会',科目:'早会',师:'耿春花',起:min(7,30),止:min(7,55)},
+  {节:'第1节',科目:'语文早会',师:'魏艳峰',起:min(8,0),止:min(8,40)},
+  {节:'课间',科目:'休息',师:'',起:min(8,40),止:min(8,55)},
+  {节:'第2节',科目:'数学',师:'耿春花',起:min(8,55),止:min(9,35)},
+  {节:'早操',科目:'活动',师:'',起:min(9,35),止:min(10,15)},
+  {节:'眼操',科目:'活动',师:'',起:min(10,15),止:min(10,20)},
+  {节:'第3节',科目:'艺术',师:'张慧玲',起:min(10,20),止:min(11,0)},
+  {节:'微运动',科目:'活动',师:'',起:min(11,0),止:min(11,15)},
+  {节:'第4节',科目:'物理',师:'王惠敏',起:min(11,15),止:min(11,55)},
+  {节:'午间',科目:'活动',师:'午餐',起:min(11,55),止:min(12,45)},
+  {节:'第5节',科目:'校本课程',师:'马丽',起:min(12,45),止:min(13,25)},
+  {节:'课间',科目:'休息',师:'',起:min(13,25),止:min(13,40)},
+  {节:'第6节',科目:'道德与法治',师:'王素芳',起:min(13,40),止:min(14,20)},
+  {节:'眼操',科目:'活动',师:'',起:min(14,20),止:min(14,25)},
+  {节:'大课间',科目:'活动',师:'',起:min(14,25),止:min(14,55)},
+  {节:'第7节',科目:'体育',师:'马尧',起:min(14,55),止:min(15,35)},
+  {节:'课间',科目:'休息',师:'',起:min(15,35),止:min(15,50)},
+  {节:'第8节',科目:'课后服务',师:'魏艳峰',起:min(15,50),止:min(16,30)},
+  {节:'休息',科目:'休息',师:'',起:min(16,30),止:min(16,40)},
+  {节:'课后服务',科目:'英语',师:'马丽',起:min(16,40),止:min(17,20)}
+ ],
+ [ /* 周二 */
+  {节:'早会',科目:'早会',师:'魏艳峰',起:min(7,30),止:min(7,55)},
+  {节:'第1节',科目:'化学',师:'孔令晟',起:min(8,0),止:min(8,40)},
+  {节:'课间',科目:'休息',师:'',起:min(8,40),止:min(8,55)},
+  {节:'第2节',科目:'英语',师:'马丽',起:min(8,55),止:min(9,35)},
+  {节:'早操',科目:'活动',师:'',起:min(9,35),止:min(10,15)},
+  {节:'眼操',科目:'活动',师:'',起:min(10,15),止:min(10,20)},
+  {节:'第3节',科目:'数学',师:'耿春花',起:min(10,20),止:min(11,0)},
+  {节:'微运动',科目:'活动',师:'',起:min(11,0),止:min(11,15)},
+  {节:'第4节',科目:'历史',师:'张慧玲',起:min(11,15),止:min(11,55)},
+  {节:'午间',科目:'活动',师:'午餐',起:min(11,55),止:min(12,45)},
+  {节:'第5节',科目:'语文',师:'魏艳峰',起:min(12,45),止:min(13,25)},
+  {节:'课间',科目:'休息',师:'',起:min(13,25),止:min(13,40)},
+  {节:'第6节',科目:'劳动',师:'王惠敏',起:min(13,40),止:min(14,20)},
+  {节:'眼操',科目:'活动',师:'',起:min(14,20),止:min(14,25)},
+  {节:'大课间',科目:'活动',师:'',起:min(14,25),止:min(14,55)},
+  {节:'第7节',科目:'体育',师:'马尧',起:min(14,55),止:min(15,35)},
+  {节:'课间',科目:'休息',师:'',起:min(15,35),止:min(15,50)},
+  {节:'第8节',科目:'课后服务',师:'马丽',起:min(15,50),止:min(16,30)},
+  {节:'休息',科目:'休息',师:'',起:min(16,30),止:min(16,40)},
+  {节:'课后服务',科目:'物理',师:'王惠敏',起:min(16,40),止:min(17,20)}
+ ],
+ [ /* 周三 */
+  {节:'早会',科目:'早会',师:'马丽',起:min(7,30),止:min(7,55)},
+  {节:'第1节',科目:'英语',师:'马丽',起:min(8,0),止:min(8,40)},
+  {节:'课间',科目:'休息',师:'',起:min(8,40),止:min(8,55)},
+  {节:'第2节',科目:'语文',师:'魏艳峰',起:min(8,55),止:min(9,35)},
+  {节:'早操',科目:'活动',师:'',起:min(9,35),止:min(10,15)},
+  {节:'眼操',科目:'活动',师:'',起:min(10,15),止:min(10,20)},
+  {节:'第3节',科目:'历史',师:'张慧玲',起:min(10,20),止:min(11,0)},
+  {节:'微运动',科目:'活动',师:'',起:min(11,0),止:min(11,15)},
+  {节:'第4节',科目:'校本课程',师:'魏艳峰',起:min(11,15),止:min(11,55)},
+  {节:'午间',科目:'活动',师:'午餐',起:min(11,55),止:min(12,45)},
+  {节:'第5节',科目:'物理',师:'王惠敏',起:min(12,45),止:min(13,25)},
+  {节:'课间',科目:'休息',师:'',起:min(13,25),止:min(13,40)},
+  {节:'第6节',科目:'数学',师:'耿春花',起:min(13,40),止:min(14,20)},
+  {节:'眼操',科目:'活动',师:'',起:min(14,20),止:min(14,25)},
+  {节:'大课间',科目:'活动',师:'',起:min(14,25),止:min(14,55)},
+  {节:'第7节',科目:'校本课程',师:'孔令晟',起:min(14,55),止:min(15,35)},
+  {节:'课间',科目:'休息',师:'',起:min(15,35),止:min(15,50)},
+  {节:'第8节',科目:'课后服务',师:'马尧（体活）',起:min(15,50),止:min(16,30)},
+  {节:'休息',科目:'休息',师:'',起:min(16,30),止:min(16,40)},
+  {节:'课后服务',科目:'语文',师:'魏艳峰',起:min(16,40),止:min(17,20)}
+ ],
+ [ /* 周四 */
+  {节:'早会',科目:'早会',师:'马丽',起:min(7,30),止:min(7,55)},
+  {节:'第1节',科目:'语文',师:'魏艳峰',起:min(8,0),止:min(8,40)},
+  {节:'课间',科目:'休息',师:'',起:min(8,40),止:min(8,55)},
+  {节:'第2节',科目:'数学',师:'耿春花',起:min(8,55),止:min(9,35)},
+  {节:'早操',科目:'活动',师:'',起:min(9,35),止:min(10,15)},
+  {节:'眼操',科目:'活动',师:'',起:min(10,15),止:min(10,20)},
+  {节:'第3节',科目:'校本课程',师:'马尧（体活）',起:min(10,20),止:min(11,0)},
+  {节:'微运动',科目:'活动',师:'',起:min(11,0),止:min(11,15)},
+  {节:'第4节',科目:'综合实践',师:'孙杨/樊颖丽',起:min(11,15),止:min(11,55)},
+  {节:'午间',科目:'活动',师:'午餐',起:min(11,55),止:min(12,45)},
+  {节:'第5节',科目:'物理',师:'王惠敏',起:min(12,45),止:min(13,25)},
+  {节:'课间',科目:'休息',师:'',起:min(13,25),止:min(13,40)},
+  {节:'第6节',科目:'艺术',师:'王素芳',起:min(13,40),止:min(14,20)},
+  {节:'眼操',科目:'活动',师:'',起:min(14,20),止:min(14,25)},
+  {节:'大课间',科目:'活动',师:'',起:min(14,25),止:min(14,55)},
+  {节:'第7节',科目:'英语',师:'马丽',起:min(14,55),止:min(15,35)},
+  {节:'课间',科目:'休息',师:'',起:min(15,35),止:min(15,50)},
+  {节:'第8节',科目:'课后服务',师:'耿春花',起:min(15,50),止:min(16,30)},
+  {节:'休息',科目:'休息',师:'',起:min(16,30),止:min(16,40)},
+  {节:'课后服务',科目:'化学',师:'孔令晟',起:min(16,40),止:min(17,20)}
+ ],
+ [ /* 周五 */
+  {节:'早会',科目:'早会',师:'魏艳峰',起:min(7,30),止:min(7,55)},
+  {节:'第1节',科目:'校本课程',师:'耿春花',起:min(8,0),止:min(8,40)},
+  {节:'课间',科目:'休息',师:'',起:min(8,40),止:min(8,55)},
+  {节:'第2节',科目:'道德与法治',师:'王素芳',起:min(8,55),止:min(9,35)},
+  {节:'早操',科目:'活动',师:'',起:min(9,35),止:min(10,15)},
+  {节:'眼操',科目:'活动',师:'',起:min(10,15),止:min(10,20)},
+  {节:'第3节',科目:'化学',师:'孔令晟',起:min(10,20),止:min(11,0)},
+  {节:'微运动',科目:'活动',师:'',起:min(11,0),止:min(11,15)},
+  {节:'第4节',科目:'数学',师:'耿春花',起:min(11,15),止:min(11,55)},
+  {节:'午间',科目:'活动',师:'午餐',起:min(11,55),止:min(12,45)},
+  {节:'第5节',科目:'英语',师:'马丽',起:min(12,45),止:min(13,25)},
+  {节:'课间',科目:'休息',师:'',起:min(13,25),止:min(13,40)},
+  {节:'第6节',科目:'语文',师:'魏艳峰',起:min(13,40),止:min(14,20)},
+  {节:'眼操',科目:'活动',师:'',起:min(14,20),止:min(14,25)},
+  {节:'大课间',科目:'活动',师:'',起:min(14,25),止:min(14,55)},
+  {节:'第7节',科目:'班会',师:'张慧玲',起:min(14,55),止:min(15,35)},
+  {节:'课间',科目:'休息',师:'',起:min(15,35),止:min(15,50)},
+  {节:'第8节',科目:'体育',师:'马尧',起:min(15,50),止:min(16,30)},
+  {节:'休息',科目:'休息',师:'',起:min(16,30),止:min(16,40)},
+  {节:'课后服务',科目:'数学考试',师:'耿春花',起:min(16,40),止:min(17,20)}
+ ]
+];
+const WEEK=['周日','周一','周二','周三','周四','周五','周六'];
+
+const $=id=>document.getElementById(id);
+function pad(n){return n<10?'0'+n:''+n}
+function fmt(sec){
+  sec=Math.max(0,Math.round(sec));
+  const h=Math.floor(sec/3600),m=Math.floor(sec%3600/60),s=sec%60;
+  return h>0 ? h+':'+pad(m)+':'+pad(s) : m+':'+pad(s);
+}
+function toHM(t){return pad(Math.floor(t/60))+':'+pad(t%60)}
+function colorOf(subject){
+  for(const k in C){if(subject.indexOf(k)>=0)return C[k].color}
+  if(subject.indexOf('考试')>=0)return '#ef5f6b';
+  return C.休息.color;
+}
+
+/* ============ 顶部下一节课 ============ */
+function fillNext(next){
+  const name=$('nextName'),meta=$('nextMeta');
+  if(!next){
+    name.textContent='今日课程已结束';
+    meta.textContent='明天见';
+    return;
+  }
+  name.textContent=next.科目==='休息'||next.科目==='活动'?(next.节)+' · '+(next.科目==='活动'?'活动':next.科目):next.科目;
+  meta.innerHTML=toHM(next.起)+' 开始'+(next.师?' · <b>'+next.师+'</b>':'');
+}
+
+/* ============ 主更新 ============ */
+function update(){
+  const now=new Date();
+  const day=now.getDay();
+  const nowMin=now.getHours()*60+now.getMinutes()+now.getSeconds()/60;
+
+  $('clockNow').textContent=pad(now.getHours())+':'+pad(now.getMinutes())+':'+pad(now.getSeconds());
+  $('clockDate').textContent=(now.getMonth()+1)+'月'+now.getDate()+'日 · '+WEEK[day];
+
+  const pill=$('pill'),pillText=$('pillText');
+  const heroCap=$('heroCap'),heroTime=$('heroTime'),heroSub=$('heroSub'),progBar=$('progBar');
+
+  if(day===0||day===6){
+    pill.className='pill done';pillText.textContent='周末 · 休息中';
+    heroCap.textContent='周末假期';heroTime.textContent='--:--';
+    heroSub.textContent='没有课程，好好放松';progBar.style.width='0';
+    progBar.style.background='var(--slate)';
+    fillNext(null);return;
+  }
+
+  const list=SCHED[day-1];
+  let current=null,next=null;
+  for(const seg of list){
+    if(nowMin>=seg.起&&nowMin<seg.止){current=seg}
+    else if(nowMin<seg.起&&!next){next=seg;break}
+  }
+  if(!current&&!next){
+    pill.className='pill done';pillText.textContent='今日课程已结束';
+    heroCap.textContent='已放学';heroTime.textContent='--:--';
+    heroSub.textContent='明天继续加油';progBar.style.width='0';
+    progBar.style.background='var(--slate)';
+    fillNext(null);return;
+  }
+
+  fillNext(next);
+  if(current){
+    const remain=(current.止-nowMin)*60;
+    const total=current.止-current.起;
+    pill.className='pill live';pillText.textContent='上课中';
+    heroCap.textContent='距离下课';
+    heroTime.textContent=fmt(remain);
+    heroSub.textContent=current.节+' · '+current.科目+(current.师?' · '+current.师:'');
+    progBar.style.width=Math.round((nowMin-current.起)/total*100)+'%';
+    progBar.style.background='var(--amber)';
+  }else if(next){
+    const remain=(next.起-nowMin)*60;
+    pill.className='pill wait';pillText.textContent='课间休息';
+    heroCap.textContent='距离上课';
+    heroTime.textContent=fmt(remain);
+    heroSub.textContent='下一节：'+next.科目+(next.师?' · '+next.师:'');
+    progBar.style.width='100%';
+    progBar.style.background='var(--teal)';
+  }
+}
+
+/* ============ 完整课程表（模态框） ============ */
+const modal=$('modal');
+$('openBtn').addEventListener('click',()=>modal.classList.add('open'));
+$('closeBtn').addEventListener('click',()=>modal.classList.remove('open'));
+modal.addEventListener('click',e=>{if(e.target===modal)modal.classList.remove('open')});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')modal.classList.remove('open')});
+
+const tabsBox=$('tabs'),tbody=$('tableBody');
+let activeTab=new Date().getDay()-1; if(activeTab<0||activeTab>4)activeTab=0;
+function renderTabs(){
+  tabsBox.innerHTML='';
+  for(let i=0;i<5;i++){
+    const b=document.createElement('button');
+    b.className='tab'+(i===activeTab?' active':'');
+    b.textContent=WEEK[i+1];
+    b.addEventListener('click',()=>{activeTab=i;renderTabs();renderTable()});
+    tabsBox.appendChild(b);
+  }
+}
+function renderTable(){
+  tbody.innerHTML='';
+  SCHED[activeTab].forEach(seg=>{
+    const tr=document.createElement('tr');
+    const c1=document.createElement('td');
+    c1.innerHTML='<span class="dotc" style="background:'+colorOf(seg.科目)+'"></span>'+seg.节;
+    const c2=document.createElement('td');c2.className='time';
+    c2.textContent=toHM(seg.起)+' – '+toHM(seg.止);
+    const c3=document.createElement('td');c3.textContent=seg.科目;
+    const c4=document.createElement('td');c4.className='teacher';c4.textContent=seg.师||'—';
+    tr.appendChild(c1);tr.appendChild(c2);tr.appendChild(c3);tr.appendChild(c4);
+    tbody.appendChild(tr);
+  });
+}
+renderTabs();renderTable();
+
+/* ============ 启动 ============ */
+update();
+setInterval(update,1000);
+</script>
+</body>
+</html>
